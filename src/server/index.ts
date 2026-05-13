@@ -92,6 +92,14 @@ async function main(): Promise<void> {
     }
   });
 
+  app.delete("/api/projects/:projectId", async (request, response, next) => {
+    try {
+      response.json(await store.deleteProject(request.params.projectId));
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.post("/api/projects/:projectId/auto-name", async (request, response, next) => {
     try {
       const projectId = request.params.projectId;

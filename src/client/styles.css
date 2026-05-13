@@ -123,6 +123,26 @@ input {
   border-color: #51606c;
 }
 
+.btn-outline-danger {
+  color: #ffb4b4;
+  border-color: rgba(229, 72, 77, 0.72);
+}
+
+.btn-outline-danger:hover,
+.btn-outline-danger:focus,
+.btn-danger {
+  color: #fff;
+  background: var(--recording);
+  border-color: var(--recording);
+}
+
+.btn-danger:hover,
+.btn-danger:focus {
+  color: #fff;
+  background: #f2555a;
+  border-color: #f2555a;
+}
+
 .capture-layout,
 .review-layout {
   display: grid;
@@ -384,6 +404,13 @@ input {
   font-weight: 650;
 }
 
+.project-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
 .form-control {
   color: var(--ink);
   background: #0f1317;
@@ -459,6 +486,23 @@ input {
   box-shadow: 0 26px 90px rgba(0, 0, 0, 0.5);
 }
 
+.delete-modal p {
+  margin: 0;
+}
+
+.delete-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #ffb4b4;
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
 .modal-header-row {
   display: flex;
   align-items: center;
@@ -529,12 +573,18 @@ input {
 
   .btn-group,
   .toolbar-actions,
-  .project-name-input {
+  .project-name-input,
+  .project-actions {
     width: 100%;
   }
 
-  .toolbar-actions .btn {
+  .toolbar-actions .btn,
+  .project-actions .btn {
     flex: 1 1 0;
+  }
+
+  .confirm-actions {
+    flex-direction: column;
   }
 
   .capture-status {

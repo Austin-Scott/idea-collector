@@ -100,4 +100,24 @@ describe("IdeaStore", () => {
 
     expect(unchanged.name).toBe("First Name");
   });
+
+  it("deletes a project and its thoughts", async () => {
+    const store = new IdeaStore(dataDir, exportDir);
+    await store.init();
+    const project = (await store.snapshot()).projects[0];
+    const idea = await store.createIdea({
+      projectId: project.id,
+      durationMs: 1200,
+      originalAudioPath: path.join(dataDir, "audio", "original", "test.webm"),
+      originalMimeType: "audio/webm"
+    });
+
+    const result = await store.deleteProject(project.id);
+    const snapshot = await store.snapshot();
+
+    expect(result.deletedProjectId).toBe(project.id);
+    expect(result.deletedThoughtIds).toEqual([idea.id]);
+    expect(snapshot.projects.some((candidate) => candidate.id === project.id)).toBe(false);
+    expect(snapshot.ideas.some((candidate) => candidate.projectId === project.id)).toBe(false);
+  });
 });

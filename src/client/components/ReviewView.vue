@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { Clipboard, Download, Mic, QrCode, RefreshCw, RotateCcw, X } from "lucide-vue-next";
+import { AlertTriangle, Clipboard, Download, Mic, QrCode, RefreshCw, RotateCcw, Trash2, X } from "lucide-vue-next";
 import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
-import { exportIdeas, fetchConnectInfo, fetchSnapshot, renameProject, retryIdea, type ConnectInfo } from "../api";
+import { deleteProject, exportIdeas, fetchConnectInfo, fetchSnapshot, renameProject, retryIdea, type ConnectInfo } from "../api";
 import type { AppSnapshot, IdeaRecord, ProjectRecord } from "../../shared/types";
 
 const snapshot = ref<AppSnapshot>({ projects: [], ideas: [] });
@@ -10,6 +10,8 @@ const status = ref("Ready");
 const errorMessage = ref("");
 const exportedMarkdown = ref("");
 const connectInfo = ref<ConnectInfo | null>(null);
+const projectPendingDeletion = ref<ProjectRecord | null>(null);
+const deletingProject = ref(false);
 const dirtyProjectNames = new Set<string>();
 let refreshTimer: number | undefined;
 
@@ -35,6 +37,9 @@ const ideasByProject = computed(() => {
 
 const readyUnexportedCount = computed(
   () => snapshot.value.ideas.filter((idea) => idea.status === "ready" && !idea.exportedAt).length
+);
+const deletionThoughtCount = computed(() =>
+  projectPendingDeletion.value ? (ideasByProject.value.get(projectPendingDeletion.value.id) ?? []).length : 0
 );
 
 onMounted(async () => {
@@ -90,6 +95,27 @@ async function retry(ideaId: string): Promise<void> {
     await refresh();
   } catch (error) {
     setError(error);
+  }
+}
+
+async function confirmDeleteProject(): Promise<void> {
+  const project = projectPendingDeletion.value;
+  if (!project) {
+    return;
+  }
+
+  try {
+    deletingProject.value = true;
+    const result = await deleteProject(project.id);
+    delete draftNames[project.id];
+    dirtyProjectNames.delete(project.id);
+    projectPendingDeletion.value = null;
+    status.value = `Deleted project and ${result.deletedThoughtIds.length} thoughts`;
+    await refresh();
+  } catch (error) {
+    setError(error);
+  } finally {
+    deletingProject.value = false;
   }
 }
 
@@ -177,10 +203,16 @@ function setError(error: unknown): void {
           @change="saveName(project)"
           @blur="saveName(project)"
         />
-        <button type="button" class="btn btn-outline-primary btn-sm" @click="exportScope(project.id)">
-          <Download :size="16" aria-hidden="true" />
-          Export project
-        </button>
+        <div class="project-actions">
+          <button type="button" class="btn btn-outline-primary btn-sm" @click="exportScope(project.id)">
+            <Download :size="16" aria-hidden="true" />
+            Export project
+          </button>
+          <button type="button" class="btn btn-outline-danger btn-sm" @click="projectPendingDeletion = project">
+            <Trash2 :size="16" aria-hidden="true" />
+            Delete
+          </button>
+        </div>
       </header>
 
       <div v-if="(ideasByProject.get(project.id) ?? []).length === 0" class="empty-state">
@@ -246,6 +278,42 @@ function setError(error: unknown): void {
               Review
             </button>
           </div>
+        </div>
+      </section>
+    </div>
+
+    <div v-if="projectPendingDeletion" class="modal-layer" role="presentation" @click.self="projectPendingDeletion = null">
+      <section class="settings-modal delete-modal" role="dialog" aria-modal="true" aria-labelledby="delete-project-title">
+        <header class="modal-header-row">
+          <div class="delete-title">
+            <AlertTriangle :size="22" aria-hidden="true" />
+            <h2 id="delete-project-title">Delete Project</h2>
+          </div>
+          <button
+            type="button"
+            class="btn btn-outline-secondary icon-only-button"
+            aria-label="Cancel delete project"
+            :disabled="deletingProject"
+            @click="projectPendingDeletion = null"
+          >
+            <X :size="18" aria-hidden="true" />
+          </button>
+        </header>
+
+        <p>
+          Delete <strong>{{ projectPendingDeletion.name }}</strong> and
+          {{ deletionThoughtCount }} {{ deletionThoughtCount === 1 ? "thought" : "thoughts" }}?
+        </p>
+        <p class="text-muted">This removes the project from the dashboard and deletes its stored audio/transcription records.</p>
+
+        <div class="confirm-actions">
+          <button type="button" class="btn btn-outline-secondary" :disabled="deletingProject" @click="projectPendingDeletion = null">
+            Cancel
+          </button>
+          <button type="button" class="btn btn-danger" :disabled="deletingProject" @click="confirmDeleteProject">
+            <Trash2 :size="17" aria-hidden="true" />
+            {{ deletingProject ? "Deleting" : "Delete project" }}
+          </button>
         </div>
       </section>
     </div>

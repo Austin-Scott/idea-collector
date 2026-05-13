@@ -46,3 +46,8 @@ export interface ExportResult {
   jsonl: string;
   exportedThoughtIds: string[];
 }
+
+export interface DeleteProjectResult {
+  deletedProjectId: string;
+  deletedThoughtIds: string[];
+}

@@ -1,7 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
-import type { AppSnapshot, ExportResult, IdeaRecord, IdeaStatus, ProjectRecord } from "../shared/types.js";
+import type { AppSnapshot, DeleteProjectResult, ExportResult, IdeaRecord, IdeaStatus, ProjectRecord } from "../shared/types.js";
 import { dataDir, exportDir } from "./paths.js";
 
 interface StoreFile {
@@ -83,6 +83,46 @@ export class IdeaStore {
       project.nameLocked = true;
       return project;
     });
+  }
+
+  async deleteProject(projectId: string): Promise<DeleteProjectResult> {
+    const filesToDelete = new Set<string>();
+    const result = await this.mutate((store) => {
+      findProject(store, projectId);
+
+      const deletedThoughts = store.ideas.filter((idea) => idea.projectId === projectId);
+      for (const idea of deletedThoughts) {
+        filesToDelete.add(idea.originalAudioPath);
+        if (idea.normalizedAudioPath) {
+          filesToDelete.add(idea.normalizedAudioPath);
+        }
+      }
+
+      store.projects = store.projects.filter((project) => project.id !== projectId);
+      store.ideas = store.ideas.filter((idea) => idea.projectId !== projectId);
+
+      return {
+        deletedProjectId: projectId,
+        deletedThoughtIds: deletedThoughts.map((idea) => idea.id)
+      };
+    });
+
+    await Promise.all(Array.from(filesToDelete).map((filePath) => this.deleteOwnedDataFile(filePath)));
+    return result;
+  }
+
+  private async deleteOwnedDataFile(filePath: string): Promise<void> {
+    if (!filePath) {
+      return;
+    }
+
+    const resolvedDataDir = path.resolve(this.rootDataDir);
+    const resolvedFilePath = path.resolve(filePath);
+    if (!resolvedFilePath.startsWith(`${resolvedDataDir}${path.sep}`)) {
+      return;
+    }
+
+    await fs.rm(resolvedFilePath, { force: true });
   }
 
   async autoRenameProject(projectId: string, name: string, thoughtKey?: string): Promise<ProjectRecord> {
