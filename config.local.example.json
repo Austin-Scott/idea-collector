@@ -1,0 +1,6 @@
+{
+  "port": 3443,
+  "transcriptionModel": "gpt-4o-transcribe",
+  "projectNameModel": "gpt-4o-mini",
+  "minRecordingMs": 650
+}

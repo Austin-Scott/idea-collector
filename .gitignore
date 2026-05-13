@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.vite/
+.test-data/
+
+.secrets/
+certs/
+data/
+exports/
+config.local.json
+
+*.log
