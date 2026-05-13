@@ -7,7 +7,7 @@ import multer from "multer";
 import qrcode from "qrcode";
 import qrcodeTerminal from "qrcode-terminal";
 import { createServer as createViteServer } from "vite";
-import { normalizeAudio } from "./audio.js";
+import { extensionForAudioMimeType, isOpenAISupportedAudioExtension, normalizeAudio } from "./audio.js";
 import { ensureCertificate } from "./cert.js";
 import { readLocalConfig } from "./config.js";
 import { getLanAddresses, getPrimaryLanAddress } from "./network.js";
@@ -35,7 +35,12 @@ async function main(): Promise<void> {
 
   const app = express();
   const upload = multer({
-    dest: audioOriginalDir,
+    storage: multer.diskStorage({
+      destination: audioOriginalDir,
+      filename: (_request, file, callback) => {
+        callback(null, `${crypto.randomUUID()}${extensionForUploadedAudio(file)}`);
+      }
+    }),
     limits: { fileSize: 25 * 1024 * 1024 }
   });
 
@@ -217,7 +222,7 @@ async function transcribeIdea(store: IdeaStore, ideaId: string, model: string): 
   try {
     await store.setIdeaStatus(ideaId, "transcribing");
     const idea = await store.getIdea(ideaId);
-    const normalizedAudioPath = await normalizeAudio(idea.originalAudioPath, idea.id);
+    const normalizedAudioPath = await normalizeAudio(idea.originalAudioPath, idea.id, idea.originalMimeType);
     await store.updateIdea(idea.id, { normalizedAudioPath });
     const transcript = await transcribeAudio(normalizedAudioPath, model);
     await store.updateIdea(idea.id, {
@@ -263,6 +268,15 @@ function numberBodyValue(value: unknown): number {
     return Number.isFinite(parsed) ? parsed : 0;
   }
   return 0;
+}
+
+function extensionForUploadedAudio(file: Express.Multer.File): string {
+  const originalExtension = path.extname(file.originalname).toLowerCase();
+  if (isOpenAISupportedAudioExtension(originalExtension)) {
+    return originalExtension;
+  }
+
+  return extensionForAudioMimeType(file.mimetype);
 }
 
 function errorHandler(error: unknown, _request: Request, response: Response, _next: NextFunction): void {
