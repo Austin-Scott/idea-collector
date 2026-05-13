@@ -282,6 +282,10 @@ input {
   font-size: 1rem;
 }
 
+.compact-recent-panel {
+  align-self: end;
+}
+
 .idea-row {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -292,6 +296,10 @@ input {
 
 .idea-row p {
   margin: 0;
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .reset-button {

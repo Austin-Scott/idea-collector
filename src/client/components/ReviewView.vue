@@ -10,6 +10,7 @@ const status = ref("Ready");
 const errorMessage = ref("");
 const exportedMarkdown = ref("");
 const connectInfo = ref<ConnectInfo | null>(null);
+const dirtyProjectNames = new Set<string>();
 let refreshTimer: number | undefined;
 
 defineProps<{
@@ -47,7 +48,9 @@ async function refresh(): Promise<void> {
   try {
     snapshot.value = await fetchSnapshot();
     for (const project of snapshot.value.projects) {
-      draftNames[project.id] = draftNames[project.id] ?? project.name;
+      if (!dirtyProjectNames.has(project.id)) {
+        draftNames[project.id] = project.name;
+      }
     }
   } catch (error) {
     setError(error);
@@ -67,10 +70,12 @@ async function saveName(project: ProjectRecord): Promise<void> {
     const name = draftNames[project.id]?.trim();
     if (!name || name === project.name) {
       draftNames[project.id] = project.name;
+      dirtyProjectNames.delete(project.id);
       return;
     }
     const updated = await renameProject(project.id, name);
     draftNames[project.id] = updated.name;
+    dirtyProjectNames.delete(project.id);
     status.value = "Project renamed";
     await refresh();
   } catch (error) {
@@ -168,6 +173,7 @@ function setError(error: unknown): void {
           v-model="draftNames[project.id]"
           class="form-control project-name-input"
           :aria-label="`Project name for ${project.name}`"
+          @input="dirtyProjectNames.add(project.id)"
           @change="saveName(project)"
           @blur="saveName(project)"
         />

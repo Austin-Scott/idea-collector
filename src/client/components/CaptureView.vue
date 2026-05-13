@@ -63,6 +63,7 @@ const selectedItem = computed(() => items.value.find((item) => item.id === selec
 const selectedProjectThoughts = computed(() =>
   snapshot.value.ideas.filter((idea) => idea.projectId === selectedProjectId.value)
 );
+const recentSelectedThoughts = computed(() => selectedProjectThoughts.value.slice(-3).reverse());
 const currentCalibrationAction = computed(() =>
   calibrationIndex.value === null ? null : calibrationOrder[calibrationIndex.value]
 );
@@ -465,6 +466,17 @@ function setError(error: unknown): void {
     <div v-if="calibrationIndex !== null" class="alert alert-info calibration-callout" role="status">
       Press {{ currentCalibrationAction }} pedal
     </div>
+
+    <section class="recent-panel compact-recent-panel">
+      <h3>Recent Thoughts</h3>
+      <div v-if="recentSelectedThoughts.length === 0" class="empty-state">No thoughts yet.</div>
+      <article v-for="thought in recentSelectedThoughts" :key="thought.id" class="idea-row">
+        <span class="badge" :class="`text-bg-${thought.status === 'ready' ? 'success' : thought.status === 'failed' ? 'danger' : 'warning'}`">
+          {{ thought.status }}
+        </span>
+        <p>{{ thought.transcript || thought.error || "Transcription pending" }}</p>
+      </article>
+    </section>
 
     <div v-if="settingsOpen" class="modal-layer" role="presentation" @click.self="emit('close-settings')">
       <section class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="capture-settings-title">

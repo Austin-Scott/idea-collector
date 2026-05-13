@@ -79,13 +79,25 @@ describe("IdeaStore", () => {
     await store.init();
     const project = (await store.snapshot()).projects[0];
 
-    const autoNamed = await store.autoRenameProject(project.id, "Chore Capture");
+    const autoNamed = await store.autoRenameProject(project.id, "Chore Capture", "thought-key-1");
     const manuallyNamed = await store.renameProject(project.id, "Kitchen Notes");
-    const ignoredAutoName = await store.autoRenameProject(project.id, "Dish Ideas");
+    const ignoredAutoName = await store.autoRenameProject(project.id, "Dish Ideas", "thought-key-2");
 
     expect(autoNamed.name).toBe("Chore Capture");
     expect(autoNamed.nameLocked).toBeFalsy();
+    expect(autoNamed.autoNameThoughtKey).toBe("thought-key-1");
     expect(manuallyNamed.nameLocked).toBe(true);
     expect(ignoredAutoName.name).toBe("Kitchen Notes");
+  });
+
+  it("skips automatic renames when the thought key is unchanged", async () => {
+    const store = new IdeaStore(dataDir, exportDir);
+    await store.init();
+    const project = (await store.snapshot()).projects[0];
+
+    await store.autoRenameProject(project.id, "First Name", "same-thoughts");
+    const unchanged = await store.autoRenameProject(project.id, "Second Name", "same-thoughts");
+
+    expect(unchanged.name).toBe("First Name");
   });
 });

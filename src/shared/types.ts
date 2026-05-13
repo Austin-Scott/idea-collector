@@ -15,6 +15,7 @@ export interface ProjectRecord {
   sortOrder: number;
   nameLocked?: boolean;
   autoNamedAt?: string;
+  autoNameThoughtKey?: string;
 }
 
 export type IdeaStatus = "pending" | "transcribing" | "ready" | "failed";

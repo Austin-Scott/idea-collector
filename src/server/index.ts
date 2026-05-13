@@ -106,14 +106,18 @@ async function main(): Promise<void> {
         return;
       }
 
-      const transcripts = await store.getReadyTranscripts(projectId);
+      const { transcripts, thoughtKey } = await store.getReadyThoughtNamingInput(projectId);
       if (transcripts.length === 0) {
+        response.json(project);
+        return;
+      }
+      if (project.autoNameThoughtKey === thoughtKey) {
         response.json(project);
         return;
       }
 
       const name = await generateProjectName(transcripts, config.projectNameModel);
-      response.json(await store.autoRenameProject(projectId, name));
+      response.json(await store.autoRenameProject(projectId, name, thoughtKey));
     } catch (error) {
       next(error);
     }

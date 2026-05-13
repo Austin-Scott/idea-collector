@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { AppSnapshot, ExportResult, IdeaRecord, IdeaStatus, ProjectRecord } from "../shared/types.js";
 import { dataDir, exportDir } from "./paths.js";
 
@@ -85,10 +85,10 @@ export class IdeaStore {
     });
   }
 
-  async autoRenameProject(projectId: string, name: string): Promise<ProjectRecord> {
+  async autoRenameProject(projectId: string, name: string, thoughtKey?: string): Promise<ProjectRecord> {
     return this.mutate((store) => {
       const project = findProject(store, projectId);
-      if (project.nameLocked) {
+      if (project.nameLocked || (thoughtKey && project.autoNameThoughtKey === thoughtKey)) {
         return project;
       }
 
@@ -96,17 +96,23 @@ export class IdeaStore {
       if (cleanedName) {
         project.name = cleanedName;
         project.autoNamedAt = new Date().toISOString();
+        project.autoNameThoughtKey = thoughtKey;
       }
       return project;
     });
   }
 
-  async getReadyTranscripts(projectId: string): Promise<string[]> {
+  async getReadyThoughtNamingInput(projectId: string): Promise<{ transcripts: string[]; thoughtKey: string }> {
     const store = await this.readStore();
     findProject(store, projectId);
-    return store.ideas
+    const readyThoughts = store.ideas
       .filter((idea) => idea.projectId === projectId && idea.status === "ready" && idea.transcript?.trim())
-      .map((idea) => idea.transcript?.trim() ?? "");
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+
+    return {
+      transcripts: readyThoughts.map((idea) => idea.transcript?.trim() ?? ""),
+      thoughtKey: readyThoughtKey(readyThoughts)
+    };
   }
 
   async createIdea(input: IdeaInput): Promise<IdeaRecord> {
@@ -259,6 +265,17 @@ function findIdea(store: StoreFile, ideaId: string): IdeaRecord {
     throw Object.assign(new Error("Idea not found"), { statusCode: 404 });
   }
   return idea;
+}
+
+function readyThoughtKey(ideas: IdeaRecord[]): string {
+  const hash = createHash("sha256");
+  for (const idea of ideas) {
+    hash.update(idea.id);
+    hash.update("\0");
+    hash.update(idea.transcript ?? "");
+    hash.update("\0");
+  }
+  return hash.digest("hex");
 }
 
 function buildMarkdownExport(
