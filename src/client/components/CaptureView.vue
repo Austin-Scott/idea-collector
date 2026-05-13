@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ArrowLeft, ArrowRight, Keyboard, Maximize2, Mic, Minimize2, MonitorCheck, Square, Sun, X } from "lucide-vue-next";
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
-import { autoNameProject, createProject, fetchSettings, fetchSnapshot, uploadIdeaAudio, type AppSettings } from "../api";
+import { autoNameProject, createProject, deleteIdea, fetchSettings, fetchSnapshot, uploadIdeaAudio, type AppSettings } from "../api";
 import {
   enterFullscreen,
   exitFullscreen,
@@ -49,6 +49,7 @@ const errorMessage = ref("");
 const wakeLockState = ref<WakeLockState>(isWakeLockSupported() ? "released" : "unsupported");
 const fullscreenActive = ref(isFullscreenActive());
 const showTouchControls = ref(window.localStorage.getItem(touchControlsStorageKey) !== "false");
+const deletingThoughtIds = ref<Set<string>>(new Set());
 const projectButtons = new Map<string, HTMLElement>();
 
 let recorder: MediaRecorder | null = null;
@@ -406,6 +407,25 @@ async function finishRecording(projectId: string, mimeType: string): Promise<voi
   }
 }
 
+async function deleteThought(ideaId: string): Promise<void> {
+  if (deletingThoughtIds.value.has(ideaId)) {
+    return;
+  }
+
+  deletingThoughtIds.value = new Set([...deletingThoughtIds.value, ideaId]);
+  try {
+    await deleteIdea(ideaId);
+    await refresh();
+    status.value = "Deleted thought";
+  } catch (error) {
+    setError(error);
+  } finally {
+    const nextIds = new Set(deletingThoughtIds.value);
+    nextIds.delete(ideaId);
+    deletingThoughtIds.value = nextIds;
+  }
+}
+
 function setError(error: unknown): void {
   errorMessage.value = error instanceof Error ? error.message : String(error);
   status.value = "Needs attention";
@@ -475,6 +495,16 @@ function setError(error: unknown): void {
           {{ thought.status }}
         </span>
         <p>{{ thought.transcript || thought.error || "Transcription pending" }}</p>
+        <button
+          type="button"
+          class="btn btn-outline-danger btn-sm icon-only-button thought-delete-button"
+          :aria-label="`Delete thought recorded ${new Date(thought.createdAt).toLocaleString()}`"
+          title="Delete thought"
+          :disabled="deletingThoughtIds.has(thought.id)"
+          @click="deleteThought(thought.id)"
+        >
+          <X :size="16" aria-hidden="true" />
+        </button>
       </article>
     </section>
 

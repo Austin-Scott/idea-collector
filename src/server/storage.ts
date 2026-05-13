@@ -1,7 +1,15 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
-import type { AppSnapshot, DeleteProjectResult, ExportResult, IdeaRecord, IdeaStatus, ProjectRecord } from "../shared/types.js";
+import type {
+  AppSnapshot,
+  DeleteIdeaResult,
+  DeleteProjectResult,
+  ExportResult,
+  IdeaRecord,
+  IdeaStatus,
+  ProjectRecord
+} from "../shared/types.js";
 import { dataDir, exportDir } from "./paths.js";
 
 interface StoreFile {
@@ -92,10 +100,7 @@ export class IdeaStore {
 
       const deletedThoughts = store.ideas.filter((idea) => idea.projectId === projectId);
       for (const idea of deletedThoughts) {
-        filesToDelete.add(idea.originalAudioPath);
-        if (idea.normalizedAudioPath) {
-          filesToDelete.add(idea.normalizedAudioPath);
-        }
+        addIdeaFiles(filesToDelete, idea);
       }
 
       store.projects = store.projects.filter((project) => project.id !== projectId);
@@ -104,6 +109,22 @@ export class IdeaStore {
       return {
         deletedProjectId: projectId,
         deletedThoughtIds: deletedThoughts.map((idea) => idea.id)
+      };
+    });
+
+    await Promise.all(Array.from(filesToDelete).map((filePath) => this.deleteOwnedDataFile(filePath)));
+    return result;
+  }
+
+  async deleteIdea(ideaId: string): Promise<DeleteIdeaResult> {
+    const filesToDelete = new Set<string>();
+    const result = await this.mutate((store) => {
+      const idea = findIdea(store, ideaId);
+      addIdeaFiles(filesToDelete, idea);
+      store.ideas = store.ideas.filter((candidate) => candidate.id !== ideaId);
+
+      return {
+        deletedThoughtId: ideaId
       };
     });
 
@@ -305,6 +326,13 @@ function findIdea(store: StoreFile, ideaId: string): IdeaRecord {
     throw Object.assign(new Error("Idea not found"), { statusCode: 404 });
   }
   return idea;
+}
+
+function addIdeaFiles(files: Set<string>, idea: IdeaRecord): void {
+  files.add(idea.originalAudioPath);
+  if (idea.normalizedAudioPath) {
+    files.add(idea.normalizedAudioPath);
+  }
 }
 
 function readyThoughtKey(ideas: IdeaRecord[]): string {

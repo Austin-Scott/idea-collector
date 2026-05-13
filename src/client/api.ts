@@ -1,4 +1,4 @@
-import type { AppSnapshot, DeleteProjectResult, ExportResult, ProjectRecord } from "../shared/types";
+import type { AppSnapshot, DeleteIdeaResult, DeleteProjectResult, ExportResult, ProjectRecord } from "../shared/types";
 
 const tokenStorageKey = "idea-collector-session-token";
 
@@ -54,6 +54,10 @@ export async function renameProject(projectId: string, name: string): Promise<Pr
 
 export async function deleteProject(projectId: string): Promise<DeleteProjectResult> {
   return api<DeleteProjectResult>(`/api/projects/${projectId}`, { method: "DELETE" });
+}
+
+export async function deleteIdea(ideaId: string): Promise<DeleteIdeaResult> {
+  return api<DeleteIdeaResult>(`/api/ideas/${ideaId}`, { method: "DELETE" });
 }
 
 export async function autoNameProject(projectId: string): Promise<ProjectRecord> {

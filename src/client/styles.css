@@ -308,7 +308,8 @@ input {
 
 .idea-row {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: start;
   gap: 10px;
   padding: 10px 0;
   border-top: 1px solid var(--line);
@@ -320,6 +321,25 @@ input {
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
+}
+
+.thought-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.thought-delete-button {
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+}
+
+.review-thought-delete-button {
+  min-height: 34px;
+  padding: 4px 10px;
+  white-space: nowrap;
 }
 
 .reset-button {

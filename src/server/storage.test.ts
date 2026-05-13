@@ -120,4 +120,30 @@ describe("IdeaStore", () => {
     expect(snapshot.projects.some((candidate) => candidate.id === project.id)).toBe(false);
     expect(snapshot.ideas.some((candidate) => candidate.projectId === project.id)).toBe(false);
   });
+
+  it("deletes one thought and leaves the project in place", async () => {
+    const store = new IdeaStore(dataDir, exportDir);
+    await store.init();
+    const project = (await store.snapshot()).projects[0];
+    const originalAudioPath = path.join(dataDir, "audio", "original", "delete-me.webm");
+    const normalizedAudioPath = path.join(dataDir, "audio", "normalized", "delete-me.wav");
+    await fs.writeFile(originalAudioPath, "original");
+    await fs.writeFile(normalizedAudioPath, "normalized");
+    const idea = await store.createIdea({
+      projectId: project.id,
+      durationMs: 1200,
+      originalAudioPath,
+      originalMimeType: "audio/webm"
+    });
+    await store.updateIdea(idea.id, { normalizedAudioPath });
+
+    const result = await store.deleteIdea(idea.id);
+    const snapshot = await store.snapshot();
+
+    expect(result.deletedThoughtId).toBe(idea.id);
+    expect(snapshot.projects.some((candidate) => candidate.id === project.id)).toBe(true);
+    expect(snapshot.ideas.some((candidate) => candidate.id === idea.id)).toBe(false);
+    await expect(fs.access(originalAudioPath)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.access(normalizedAudioPath)).rejects.toMatchObject({ code: "ENOENT" });
+  });
 });

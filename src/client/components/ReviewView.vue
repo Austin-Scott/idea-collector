@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { AlertTriangle, Clipboard, Download, Mic, QrCode, RefreshCw, RotateCcw, Trash2, X } from "lucide-vue-next";
 import { computed, onMounted, onUnmounted, reactive, ref } from "vue";
-import { deleteProject, exportIdeas, fetchConnectInfo, fetchSnapshot, renameProject, retryIdea, type ConnectInfo } from "../api";
+import { deleteIdea, deleteProject, exportIdeas, fetchConnectInfo, fetchSnapshot, renameProject, retryIdea, type ConnectInfo } from "../api";
 import type { AppSnapshot, IdeaRecord, ProjectRecord } from "../../shared/types";
 
 const snapshot = ref<AppSnapshot>({ projects: [], ideas: [] });
@@ -12,6 +12,7 @@ const exportedMarkdown = ref("");
 const connectInfo = ref<ConnectInfo | null>(null);
 const projectPendingDeletion = ref<ProjectRecord | null>(null);
 const deletingProject = ref(false);
+const deletingThoughtIds = ref<Set<string>>(new Set());
 const dirtyProjectNames = new Set<string>();
 let refreshTimer: number | undefined;
 
@@ -95,6 +96,25 @@ async function retry(ideaId: string): Promise<void> {
     await refresh();
   } catch (error) {
     setError(error);
+  }
+}
+
+async function deleteThought(ideaId: string): Promise<void> {
+  if (deletingThoughtIds.value.has(ideaId)) {
+    return;
+  }
+
+  deletingThoughtIds.value = new Set([...deletingThoughtIds.value, ideaId]);
+  try {
+    await deleteIdea(ideaId);
+    await refresh();
+    status.value = "Deleted thought";
+  } catch (error) {
+    setError(error);
+  } finally {
+    const nextIds = new Set(deletingThoughtIds.value);
+    nextIds.delete(ideaId);
+    deletingThoughtIds.value = nextIds;
   }
 }
 
@@ -226,7 +246,7 @@ function setError(error: unknown): void {
               <th>Status</th>
               <th>Thought</th>
               <th>Recorded</th>
-              <th></th>
+              <th class="text-end">Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -241,15 +261,28 @@ function setError(error: unknown): void {
               </td>
               <td>{{ new Date(idea.createdAt).toLocaleString() }}</td>
               <td class="text-end">
-                <button
-                  v-if="idea.status === 'failed'"
-                  type="button"
-                  class="btn btn-outline-secondary btn-sm"
-                  @click="retry(idea.id)"
-                >
-                  <RotateCcw :size="16" aria-hidden="true" />
-                  Retry
-                </button>
+                <div class="thought-actions">
+                  <button
+                    v-if="idea.status === 'failed'"
+                    type="button"
+                    class="btn btn-outline-secondary btn-sm"
+                    @click="retry(idea.id)"
+                  >
+                    <RotateCcw :size="16" aria-hidden="true" />
+                    Retry
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline-danger btn-sm review-thought-delete-button"
+                    :aria-label="`Delete thought recorded ${new Date(idea.createdAt).toLocaleString()}`"
+                    title="Delete thought"
+                    :disabled="deletingThoughtIds.has(idea.id)"
+                    @click="deleteThought(idea.id)"
+                  >
+                    <X :size="16" aria-hidden="true" />
+                    {{ deletingThoughtIds.has(idea.id) ? "Deleting" : "Delete thought" }}
+                  </button>
+                </div>
               </td>
             </tr>
           </tbody>

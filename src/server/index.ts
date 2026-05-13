@@ -174,6 +174,14 @@ async function main(): Promise<void> {
     }
   });
 
+  app.delete("/api/ideas/:ideaId", async (request, response, next) => {
+    try {
+      response.json(await store.deleteIdea(request.params.ideaId));
+    } catch (error) {
+      next(error);
+    }
+  });
+
   app.post("/api/export", async (request, response, next) => {
     try {
       response.json(
@@ -231,8 +239,23 @@ async function transcribeIdea(store: IdeaStore, ideaId: string, model: string): 
       error: undefined
     });
   } catch (error) {
-    await store.setIdeaStatus(ideaId, "failed", error instanceof Error ? error.message : String(error));
+    if (isNotFoundError(error)) {
+      return;
+    }
+
+    try {
+      await store.setIdeaStatus(ideaId, "failed", error instanceof Error ? error.message : String(error));
+    } catch (statusError) {
+      if (!isNotFoundError(statusError)) {
+        throw statusError;
+      }
+    }
   }
+}
+
+function isNotFoundError(error: unknown): boolean {
+  return typeof (error as { statusCode?: unknown }).statusCode === "number"
+    && (error as { statusCode: number }).statusCode === 404;
 }
 
 function requireSession(expectedToken: string) {
